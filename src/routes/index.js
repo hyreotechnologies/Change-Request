@@ -19,6 +19,7 @@ import { CURRENCIES } from '../lib/money.js';
 import savedViews from '../services/savedViews.js';
 import reminders from '../services/reminders.js';
 import chat from '../services/chat.js';
+import integrationRouter from './integrations.js';
 
 const router = Router();
 
@@ -37,6 +38,7 @@ router.use('/roles', roleRouter);
 router.use('/settings', settingsRouter);
 router.use('/portal', portalRouter);
 router.use('/public', publicRouter);
+router.use('/integrations', integrationRouter);
 
 /* ------------------------------------------------------------- dashboard -- */
 
@@ -113,7 +115,7 @@ router.post(
   handler(async (req, res) => {
     if (!chat.isConfigured()) throw errors.invalidState('Add a Slack or Teams webhook URL and save before sending a test message');
     const results = await chat.deliver({
-      title: 'Hyreo CRMS test message',
+      title: 'Hyreo Account Management test message',
       text: `Sent by ${req.user.name}. If you can read this, change request updates will arrive in this channel.`,
       link: '/dashboard'
     });

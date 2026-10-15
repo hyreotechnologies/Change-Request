@@ -12,7 +12,7 @@ import config from '../src/config.js';
 const force = process.argv.includes('--force') || process.argv.includes('-f');
 
 const SEEDED_ACCOUNT_CODES = ['PEERISLANDS', 'ACMETECH'];
-const SEEDED_USER_EMAILS = ['labs@hyreo.com', 'arun.satyan@hyreo.com', 'cr.manager@hyreo.com', 'viewer@hyreo.com'];
+const SEEDED_USER_EMAILS = ['sahaf@hyreo.com', 'arun.satyan@hyreo.com', 'cr.manager@hyreo.com', 'viewer@hyreo.com'];
 const SEEDED_CR_NUMBERS = ['PEERISLANDS-CR-001', 'ACMETECH-CR-001', 'ACMETECH-CR-002', 'ACMETECH-CR-003'];
 
 async function describeUserData() {

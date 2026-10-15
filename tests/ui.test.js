@@ -120,20 +120,20 @@ async function main() {
   };
 
   try {
-    console.log('\nHyreo CRMS — browser walkthrough\n');
+    console.log('\nHyreo Account Management — browser walkthrough\n');
 
     /* ---------------------------------------------------------- sign in -- */
 
     await step('login screen renders the email step', async () => {
       await go('/login');
       const body = await text();
-      if (!hasText(body, 'Hyreo Change Request Management')) throw new Error('title missing');
+      if (!hasText(body, 'Hyreo Account Management')) throw new Error('title missing');
       if (!hasText(body, 'Send OTP')) throw new Error('Send OTP button missing');
       if ((await count('.auth__brand')) !== 1) throw new Error('brand panel missing');
     });
 
     await step('OTP step appears with six inputs and a resend control', async () => {
-      await page.type('input[type=email]', 'labs@hyreo.com');
+      await page.type('input[type=email]', 'sahaf@hyreo.com');
       await page.click('button[type=submit]');
       await page.waitForSelector('.otp-inputs input', { timeout: 8000 });
       if ((await count('.otp-inputs input')) !== 6) throw new Error('expected six OTP boxes');
@@ -766,12 +766,12 @@ async function main() {
 
     await step('the stored MSA can be opened again from the accounts list', async () => {
       await go('/accounts');
-      await page.waitForSelector('table.data tbody tr');
+      await page.waitForSelector('#accounts-table table.data tbody tr');
       const viewButtons = await count('button[title="View MSA document"]');
       if (viewButtons < 1) throw new Error('no View MSA action on the accounts list');
 
       const href = await page.evaluate(async () => {
-        const rows = [...document.querySelectorAll('table.data tbody tr')];
+        const rows = [...document.querySelectorAll('#accounts-table table.data tbody tr')];
         const row = rows.find((tr) => tr.innerText.includes('Initech'));
         const response = await fetch('/api/accounts/lookup?q=Initech', { credentials: 'same-origin' });
         const { data } = await response.json();
@@ -813,18 +813,18 @@ async function main() {
 
     await step('accounts list always offers a delete action', async () => {
       await go('/accounts');
-      await page.waitForSelector('table.data tbody tr');
-      const deleteButtons = await page.$$eval('table.data button[title="Delete account"]', (nodes) => nodes.length);
-      const rows = await count('table.data tbody tr');
+      await page.waitForSelector('#accounts-table table.data tbody tr');
+      const deleteButtons = await page.$$eval('#accounts-table table.data button[title="Delete account"]', (nodes) => nodes.length);
+      const rows = await count('#accounts-table table.data tbody tr');
       if (deleteButtons !== rows) throw new Error(`expected a delete action on all ${rows} rows, found ${deleteButtons}`);
-      const deactivate = await count('table.data button[title="Deactivate account"]');
+      const deactivate = await count('#accounts-table table.data button[title="Deactivate account"]');
       if (deactivate < 1) throw new Error('deactivate action missing');
       return `${deleteButtons} delete actions`;
     });
 
     await step('deleting an account with contractual CRs is refused and offers deactivation', async () => {
       await page.evaluate(() => {
-        const row = [...document.querySelectorAll('table.data tbody tr')].find((tr) => tr.innerText.includes('PeerIslands'));
+        const row = [...document.querySelectorAll('#accounts-table table.data tbody tr')].find((tr) => tr.innerText.includes('PeerIslands'));
         row.querySelector('button[title="Delete account"]').click();
       });
       await page.waitForSelector('.modal', { timeout: 8000 });
@@ -857,9 +857,9 @@ async function main() {
       });
 
       await go('/accounts?q=Disposable');
-      await page.waitForSelector('table.data tbody tr');
+      await page.waitForSelector('#accounts-table table.data tbody tr');
       await page.evaluate(() => {
-        const row = [...document.querySelectorAll('table.data tbody tr')].find((tr) => tr.innerText.includes('Disposable'));
+        const row = [...document.querySelectorAll('#accounts-table table.data tbody tr')].find((tr) => tr.innerText.includes('Disposable'));
         row.querySelector('button[title="Delete account"]').click();
       });
       await page.waitForSelector('.modal input.input', { timeout: 8000 });
@@ -948,7 +948,7 @@ async function main() {
         await sleep(800);
         const body = await text();
         if (hasText(body, 'Unable to')) throw new Error(`settings tab ${label} failed`);
-        if (label === 'Users' && !hasText(body, 'labs@hyreo.com')) throw new Error('user list did not load');
+        if (label === 'Users' && !hasText(body, 'sahaf@hyreo.com')) throw new Error('user list did not load');
         if (label === 'Roles' && !hasText(body, 'cr.approve')) throw new Error('permission matrix did not load');
         if (label === 'DocuSign' && !hasText(body, 'Simulated')) throw new Error('integration panel did not load');
       }

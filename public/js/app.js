@@ -18,6 +18,7 @@ import documentsPage from './pages/documents.js';
 import reportsPage from './pages/reports.js';
 import notificationsPage, { outboxPage } from './pages/notifications.js';
 import settingsPage from './pages/settings.js';
+import integrationsPage from './pages/integrations.js';
 import portalPage from './pages/portal.js';
 
 const root = document.getElementById('app');
@@ -59,6 +60,7 @@ router
   .add('/reports', authenticated(reportsPage))
   .add('/notifications', authenticated(notificationsPage))
   .add('/outbox', authenticated(outboxPage))
+  .add('/integrations', authenticated(integrationsPage))
   .add('/settings', authenticated(settingsPage))
   .add('/settings/:tab', authenticated(settingsPage))
   .setNotFound(async ({ path }) => {

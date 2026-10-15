@@ -110,10 +110,19 @@ export function nextSequence(name) {
   });
 }
 
+/** CREATE TABLE IF NOT EXISTS leaves existing tables alone, so later columns are added here. */
+function addMissingColumns(table, columns) {
+  const existing = new Set(all(`PRAGMA table_info(${table})`).map((column) => column.name));
+  for (const [name, type] of Object.entries(columns)) {
+    if (!existing.has(name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`);
+  }
+}
+
 export function migrate() {
   const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   db.exec(schema);
-  const version = '2026.03.01';
+  addMissingColumns('accounts', { go_live_date: 'TEXT', next_renewal_date: 'TEXT' });
+  const version = '2026.10.08';
   run('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?) ON CONFLICT(version) DO NOTHING', [
     version,
     new Date().toISOString()

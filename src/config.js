@@ -53,6 +53,12 @@ export const config = {
   },
   seedOnBoot: env.SEED_ON_BOOT !== 'false',
   logLevel: env.LOG_LEVEL || (isProduction ? 'info' : 'debug'),
+  // OAuth apps registered once by the vendor; customers only click Connect
+  oauth: {
+    microsoft: { clientId: env.MICROSOFT_CLIENT_ID || '', clientSecret: env.MICROSOFT_CLIENT_SECRET || '' },
+    google: { clientId: env.GOOGLE_CLIENT_ID || '', clientSecret: env.GOOGLE_CLIENT_SECRET || '' },
+    slack: { clientId: env.SLACK_CLIENT_ID || '', clientSecret: env.SLACK_CLIENT_SECRET || '' }
+  },
   rateLimit: {
     otpRequestsPerHour: Number(env.OTP_REQUESTS_PER_HOUR || 20),
     apiRequestsPerMinute: Number(env.API_REQUESTS_PER_MINUTE || 600)

@@ -17,6 +17,7 @@ const NAV = [
   { path: '/reports', label: 'Reports', icon: 'reports', permission: 'report.view' },
   { path: '/notifications', label: 'Notifications', icon: 'bell', permission: 'notification.view' },
   { path: '/outbox', label: 'Email Outbox', icon: 'mail', permission: 'email.view' },
+  { path: '/integrations', label: 'Integrations', icon: 'plug', permission: 'integration.manage' },
   { path: '/settings', label: 'Settings', icon: 'settings', permission: 'settings.manage' }
 ];
 
@@ -67,7 +68,7 @@ function buildSidebar() {
     'aside.sidebar',
     h(
       'div.sidebar__brand',
-      h('div.brand', h('img.brand__logo', { src: HYREO_LOGO_URL, alt: 'Hyreo' }), h('div.sidebar__subtitle', 'Change Request Management'))
+      h('div.brand', h('img.brand__logo', { src: HYREO_LOGO_URL, alt: 'Hyreo' }), h('div.sidebar__subtitle', 'Account Management'))
     ),
     h(
       'nav.sidebar__nav',
@@ -473,7 +474,7 @@ function themePicker() {
               title: option.label,
               'aria-pressed': String(currentTheme() === option.value),
               onClick: () => {
-                applyTheme(option.value);
+                applyTheme(option.value, { remember: true });
                 draw();
               }
             },

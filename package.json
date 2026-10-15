@@ -1,7 +1,7 @@
 {
   "name": "hyreo-crms",
   "version": "1.0.0",
-  "description": "Hyreo Change Request Management System — account/MSA master, CR lifecycle, internal approval, document generation, customer signature and audit.",
+  "description": "Hyreo Account Management System — account/MSA master, CR lifecycle, internal approval, document generation, customer signature and audit.",
   "type": "module",
   "engines": {
     "node": ">=22.5.0"

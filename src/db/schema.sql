@@ -1,5 +1,5 @@
 -- ===========================================================================
--- Hyreo Change Request Management System — schema
+-- Hyreo Account Management System — schema
 -- Engine: SQLite (node:sqlite). Portable SQL only.
 -- Dates: ISO-8601 TEXT. Money: REAL rounded to 2dp. Booleans: INTEGER 0|1.
 -- ===========================================================================
@@ -163,6 +163,8 @@ CREATE TABLE IF NOT EXISTS accounts (
   delivery_manager        TEXT,
   internal_approver_name  TEXT,
   internal_approver_email TEXT,
+  go_live_date            TEXT,
+  next_renewal_date       TEXT,
   notes                   TEXT,
   created_at              TEXT NOT NULL,
   created_by              TEXT,
@@ -691,3 +693,31 @@ FOR EACH ROW WHEN OLD.is_locked = 1 AND NOT (
 BEGIN
   SELECT RAISE(ABORT, 'Locked document versions are immutable');
 END;
+
+-- --------------------------------------------------------------------------
+-- Integrations: one organisation-wide OAuth connection per provider
+-- --------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS integrations (
+  provider       TEXT PRIMARY KEY,
+  account_label  TEXT,
+  account_email  TEXT,
+  access_token   TEXT,
+  refresh_token  TEXT,
+  expires_at     TEXT,
+  scopes         TEXT,
+  settings_json  TEXT,
+  last_error     TEXT,
+  last_used_at   TEXT,
+  connected_by   TEXT,
+  connected_at   TEXT NOT NULL,
+  updated_at     TEXT
+);
+
+CREATE TABLE IF NOT EXISTS integration_oauth_states (
+  state       TEXT PRIMARY KEY,
+  provider    TEXT NOT NULL,
+  user_id     TEXT NOT NULL,
+  created_at  TEXT NOT NULL,
+  expires_at  TEXT NOT NULL
+);

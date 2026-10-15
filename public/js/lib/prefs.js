@@ -27,9 +27,15 @@ export function writePref(key, value) {
 
 export const THEMES = ['system', 'light', 'dark'];
 
+// Light is the house style. Dark (or following the OS) only applies once the
+// user picks it from the user menu; the key is new so that an earlier build's
+// automatically stored 'system' value is ignored.
+const THEME_KEY = 'themeChoice';
+const DEFAULT_THEME = 'light';
+
 export function currentTheme() {
-  const theme = readPref('theme', 'system');
-  return THEMES.includes(theme) ? theme : 'system';
+  const theme = readPref(THEME_KEY, DEFAULT_THEME);
+  return THEMES.includes(theme) ? theme : DEFAULT_THEME;
 }
 
 const systemDark = () => window.matchMedia?.('(prefers-color-scheme: dark)');
@@ -40,10 +46,10 @@ let followingSystem = false;
  * page is open); 'light' / 'dark' pin it. The resolved value always lands on
  * <html data-theme>, so the stylesheet has a single dark-mode block.
  */
-export function applyTheme(theme = currentTheme()) {
+export function applyTheme(theme = currentTheme(), { remember = false } = {}) {
   const resolved = theme === 'system' ? (systemDark()?.matches ? 'dark' : 'light') : theme;
   document.documentElement.dataset.theme = resolved;
-  writePref('theme', theme);
+  if (remember) writePref(THEME_KEY, theme);
 
   if (!followingSystem && systemDark()?.addEventListener) {
     followingSystem = true;

@@ -1,6 +1,6 @@
 import { all, get, insert, run, transaction, update } from '../db/index.js';
 import { nextAccountId, nextMsaId, uid, slugifyCode } from '../lib/ids.js';
-import { nowIso, addDays } from '../lib/dates.js';
+import { nowIso, addDays, todayIso, monthKey, monthLabel } from '../lib/dates.js';
 import { errors, translateDbError } from '../lib/errors.js';
 import { validate } from '../lib/validate.js';
 import audit, { ACTIONS } from './audit.js';
@@ -26,6 +26,8 @@ const ACCOUNT_FIELDS = {
   delivery_manager: { type: 'string', label: 'Delivery manager', maxLength: 120 },
   internal_approver_name: { type: 'string', label: 'Internal approver', maxLength: 120 },
   internal_approver_email: { type: 'email', label: 'Internal approver email' },
+  go_live_date: { type: 'date', label: 'Go-live date' },
+  next_renewal_date: { type: 'date', label: 'Next renewal date' },
   notes: { type: 'text', label: 'Notes', maxLength: 4000 }
 };
 
@@ -66,6 +68,7 @@ export function create(payload, actor) {
   const primary = validate(payload.primary_contact || {}, CONTACT_FIELDS, { partial: true });
   const approver = validate(payload.approval_contact || {}, CONTACT_FIELDS, { partial: true });
 
+  checkAccountDates(account);
   if (msa.contract_end_date && msa.contract_end_date < msa.contract_start_date) {
     throw errors.validation('Contract end date cannot be earlier than the start date', [
       { field: 'contract_end_date', message: 'Contract end date cannot be earlier than the start date' }
@@ -105,6 +108,8 @@ export function create(payload, actor) {
         delivery_manager: account.delivery_manager,
         internal_approver_name: account.internal_approver_name,
         internal_approver_email: account.internal_approver_email,
+        go_live_date: account.go_live_date,
+        next_renewal_date: account.next_renewal_date,
         notes: account.notes,
         created_at: now,
         created_by: actor?.id || null
@@ -161,6 +166,14 @@ export function create(payload, actor) {
   }
 }
 
+function checkAccountDates({ go_live_date: goLive, next_renewal_date: renewal }) {
+  if (goLive && renewal && renewal < goLive) {
+    throw errors.validation('Next renewal date cannot be earlier than the go-live date', [
+      { field: 'next_renewal_date', message: 'Next renewal date cannot be earlier than the go-live date' }
+    ]);
+  }
+}
+
 function upsertContact(accountId, type, data) {
   if (!data || (!data.name && !data.email)) return null;
   const existing = get('SELECT * FROM customer_contacts WHERE account_id = ? AND contact_type = ?', [accountId, type]);
@@ -194,6 +207,7 @@ export function edit(id, payload, actor) {
   if (!existing) throw errors.notFound('Account not found');
 
   const account = validate(payload.account || payload, ACCOUNT_FIELDS, { partial: true });
+  checkAccountDates({ ...existing, ...account });
   const msaPayload = payload.msa ? validate(payload.msa, MSA_FIELDS, { partial: true }) : null;
 
   try {
@@ -306,7 +320,8 @@ export function list({ q = null, status = null, limit = 50, offset = 0, sort = '
   const rows = all(
     `SELECT a.*,
             m.id AS msa_id, m.msa_reference_number, m.msa_date, m.contract_start_date, m.contract_end_date,
-            m.status AS msa_status, m.currency,
+            m.status AS msa_status, m.currency, m.contract_value,
+            COALESCE(a.next_renewal_date, m.contract_end_date) AS renewal_date,
             (SELECT COUNT(*) FROM msa_contracts mm WHERE mm.account_id = a.id) AS msa_count,
             (SELECT d.id FROM msa_documents d WHERE d.account_id = a.id ORDER BY d.uploaded_at DESC LIMIT 1) AS msa_document_id,
             (SELECT name FROM customer_contacts c WHERE c.account_id = a.id AND c.contact_type = 'PRIMARY' LIMIT 1) AS primary_contact_name,
@@ -484,6 +499,149 @@ export function expiringContracts() {
   ).map((row) => ({ ...row, ...renewalState(row) }));
 }
 
+/* -------------------------------------------------- portfolio summary -- */
+
+const RENEWAL_HORIZON_MONTHS = 3;
+const DORMANT_DAYS = 90;
+
+function addMonthsToDate(isoDate, months) {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + months, 1));
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(d, lastDay));
+  return target.toISOString().slice(0, 10);
+}
+
+function daysUntil(isoDate, today) {
+  return Math.round((Date.parse(`${isoDate}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
+}
+
+/**
+ * Account-level summary for the Accounts page: how many are active, what they
+ * are worth, and when each one renews. The renewal date is the account's own
+ * next renewal date, falling back to the primary MSA's contract end date.
+ */
+export function portfolioInsights() {
+  const today = todayIso();
+  const horizon = addMonthsToDate(today, RENEWAL_HORIZON_MONTHS);
+  const dormantSince = addDays(-DORMANT_DAYS).slice(0, 10);
+  const defaultCurrency = getSetting('defaults.currency', 'INR');
+
+  const rows = all(
+    `SELECT a.id, a.account_name, a.account_code, a.status, a.account_manager,
+            a.go_live_date, a.next_renewal_date,
+            m.msa_reference_number, m.contract_end_date, m.currency,
+            (SELECT SUM(mm.contract_value) FROM msa_contracts mm
+              WHERE mm.account_id = a.id AND mm.status = 'ACTIVE') AS contract_value,
+            (SELECT IFNULL(SUM(cc.total_cost), 0) FROM change_requests cr JOIN change_request_costs cc ON cc.cr_id = cr.id
+              WHERE cr.account_id = a.id AND cr.status IN (${COMMITTED.map(() => '?').join(', ')})) AS signed_cr_value,
+            (SELECT IFNULL(SUM(cc.total_cost), 0) FROM change_requests cr JOIN change_request_costs cc ON cc.cr_id = cr.id
+              WHERE cr.account_id = a.id AND cr.status IN (${PIPELINE.map(() => '?').join(', ')})) AS pipeline_cr_value,
+            (SELECT COUNT(*) FROM change_requests cr
+              WHERE cr.account_id = a.id AND cr.status NOT IN ('COMPLETED','CANCELLED','EXPIRED')) AS open_crs,
+            (SELECT MAX(cr.created_at) FROM change_requests cr WHERE cr.account_id = a.id) AS last_cr_at
+       FROM accounts a
+       LEFT JOIN msa_contracts m ON m.account_id = a.id AND m.is_primary = 1
+      ORDER BY a.account_name`,
+    [...COMMITTED, ...PIPELINE]
+  ).map((row) => {
+    const renewalDate = row.next_renewal_date || row.contract_end_date || null;
+    let renewalState = 'not_set';
+    if (renewalDate) {
+      if (renewalDate < today) renewalState = 'overdue';
+      else if (renewalDate <= horizon) renewalState = 'due_soon';
+      else renewalState = 'scheduled';
+    }
+    const contractValue = Number(row.contract_value) || 0;
+    const signed = Number(row.signed_cr_value) || 0;
+    return {
+      ...row,
+      currency: row.currency || defaultCurrency,
+      contract_value: row.contract_value === null ? null : contractValue,
+      signed_cr_value: signed,
+      pipeline_cr_value: Number(row.pipeline_cr_value) || 0,
+      account_value: contractValue + signed,
+      renewal_date: renewalDate,
+      renewal_source: row.next_renewal_date ? 'account' : row.contract_end_date ? 'msa' : null,
+      renewal_state: renewalState,
+      days_left: renewalDate ? daysUntil(renewalDate, today) : null,
+      lifecycle: !row.go_live_date ? 'not_set' : row.go_live_date <= today ? 'live' : 'onboarding'
+    };
+  });
+
+  const active = rows.filter((row) => row.status === 'ACTIVE');
+
+  const totalsByCurrency = new Map();
+  for (const row of active) {
+    const totals = totalsByCurrency.get(row.currency) || {
+      currency: row.currency, accounts: 0, contract_value: 0, signed_cr_value: 0, pipeline_cr_value: 0, account_value: 0
+    };
+    totals.accounts += 1;
+    totals.contract_value += row.contract_value || 0;
+    totals.signed_cr_value += row.signed_cr_value;
+    totals.pipeline_cr_value += row.pipeline_cr_value;
+    totals.account_value += row.account_value;
+    totalsByCurrency.set(row.currency, totals);
+  }
+  const values = [...totalsByCurrency.values()].sort((a, b) =>
+    a.currency === defaultCurrency ? -1 : b.currency === defaultCurrency ? 1 : b.account_value - a.account_value
+  );
+
+  const dueSoon = active.filter((row) => row.renewal_state === 'due_soon');
+  const overdue = active.filter((row) => row.renewal_state === 'overdue');
+  const pick = (row) => ({ id: row.id, account_name: row.account_name });
+
+  // renewals per month for the next 12 months, current month first
+  const byMonth = [];
+  for (let i = 0; i < 12; i += 1) {
+    const key = monthKey(addMonthsToDate(`${today.slice(0, 7)}-01`, i));
+    const due = active.filter((row) => row.renewal_date && row.renewal_date >= today && monthKey(row.renewal_date) === key);
+    byMonth.push({ key, label: monthLabel(key), value: due.length, accounts: due.map((row) => row.account_name) });
+  }
+
+  return {
+    today,
+    horizon,
+    horizon_months: RENEWAL_HORIZON_MONTHS,
+    dormant_days: DORMANT_DAYS,
+    currency: values[0]?.currency || defaultCurrency,
+    counts: {
+      total: rows.length,
+      active: active.length,
+      inactive: rows.length - active.length,
+      live: active.filter((row) => row.lifecycle === 'live').length,
+      onboarding: active.filter((row) => row.lifecycle === 'onboarding').length,
+      go_live_not_set: active.filter((row) => row.lifecycle === 'not_set').length,
+      with_open_crs: active.filter((row) => row.open_crs > 0).length,
+      dormant: active.filter((row) => !row.last_cr_at || row.last_cr_at.slice(0, 10) < dormantSince).length
+    },
+    values,
+    renewals: {
+      due_soon_count: dueSoon.length,
+      due_soon_value: dueSoon.reduce((sum, row) => sum + row.account_value, 0),
+      overdue_count: overdue.length,
+      not_set_count: active.filter((row) => row.renewal_state === 'not_set').length,
+      next:
+        active
+          .filter((row) => row.renewal_date && row.renewal_date >= today)
+          .sort((a, b) => a.renewal_date.localeCompare(b.renewal_date))[0] || null,
+      by_month: byMonth
+    },
+    gaps: {
+      no_go_live: active.filter((row) => !row.go_live_date).map(pick),
+      no_renewal: active.filter((row) => !row.renewal_date).map(pick),
+      renewal_from_msa: active.filter((row) => row.renewal_source === 'msa').map(pick),
+      no_contract_value: active.filter((row) => row.contract_value === null).map(pick)
+    },
+    // every active account, soonest renewal first; accounts without a date last
+    accounts: [...active].sort((a, b) => {
+      if (!a.renewal_date) return b.renewal_date ? 1 : a.account_name.localeCompare(b.account_name);
+      if (!b.renewal_date) return -1;
+      return a.renewal_date.localeCompare(b.renewal_date);
+    })
+  };
+}
+
 export function changeRequests(accountId, { msaId = null } = {}) {
   const params = [accountId];
   let clause = 'WHERE cr.account_id = ?';
@@ -650,5 +808,6 @@ export default {
   lookup,
   msaBudget,
   renewalState,
-  expiringContracts
+  expiringContracts,
+  portfolioInsights
 };

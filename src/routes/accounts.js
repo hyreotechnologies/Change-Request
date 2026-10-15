@@ -50,6 +50,14 @@ router.get(
 );
 
 router.get(
+  '/insights',
+  requirePermission('account.view'),
+  handler((req, res) => {
+    res.json({ data: accounts.portfolioInsights() });
+  })
+);
+
+router.get(
   '/lookup',
   requirePermission('account.view'),
   handler((req, res) => {

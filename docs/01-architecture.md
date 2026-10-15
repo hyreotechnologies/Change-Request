@@ -2,7 +2,7 @@
 
 ## 1.1 Overview
 
-Hyreo CRMS is a server-rendered-API + SPA enterprise application. It is a single deployable
+Hyreo Account Management is a server-rendered-API + SPA enterprise application. It is a single deployable
 Node.js process that serves a JSON API, static SPA assets, generated documents and public
 (tokenised) portal endpoints for external approvers and customers.
 

@@ -92,7 +92,6 @@ export async function settingsPage({ params }) {
       ),
       h(
         'div.row.mt-2',
-        h('div.muted', 'Changes are audited and take effect immediately.'),
         h('div.spacer'),
         h(
           'button.btn.btn--primary',

@@ -1,6 +1,7 @@
 import { h, render, debounce } from '../lib/dom.js';
 import { card, icon, pageHeader, skeletonTable, badge, apiError, notify, confirmDialog, modal, alert, field } from '../lib/ui.js';
 import { dataTable, pagination } from '../components/table.js';
+import { accountSummary } from '../components/accountSummary.js';
 import { setPage } from '../components/shell.js';
 import { date, money, number, truncate } from '../lib/format.js';
 import api, { qs } from '../lib/api.js';
@@ -15,7 +16,8 @@ export async function accountsPage({ query }) {
     pageSize: 25
   };
 
-  const tableHost = h('div', skeletonTable());
+  const tableHost = h('div#accounts-table', skeletonTable());
+  const summaryHost = h('div');
 
   const searchInput = h('input.input', {
     type: 'search',
@@ -55,6 +57,7 @@ export async function accountsPage({ query }) {
         ? h('button.btn.btn--primary', { onClick: () => router.navigate('/accounts/new') }, icon('plus', 15), 'Create Account')
         : null
     }),
+    summaryHost,
     card({
       title: 'Customer accounts',
       actions: h('div.row.row--tight', searchInput, statusSelect),
@@ -63,7 +66,21 @@ export async function accountsPage({ query }) {
     })
   );
 
-  await load();
+  await Promise.all([load(), loadSummary()]);
+
+  function reload() {
+    load();
+    loadSummary();
+  }
+
+  async function loadSummary() {
+    try {
+      render(summaryHost, accountSummary(await api.get('/api/accounts/insights')));
+    } catch (error) {
+      render(summaryHost, null);
+      apiError(error);
+    }
+  }
 
   async function load() {
     render(tableHost, skeletonTable());
@@ -154,11 +171,11 @@ export async function accountsPage({ query }) {
                     ? iconAction(
                         row.status === 'ACTIVE' ? 'lock' : 'check',
                         row.status === 'ACTIVE' ? 'Deactivate account' : 'Activate account',
-                        () => toggleStatus(row, load)
+                        () => toggleStatus(row, reload)
                       )
                     : null,
                   store.can('account.delete')
-                    ? iconAction('trash', 'Delete account', () => deleteAccount(row, load))
+                    ? iconAction('trash', 'Delete account', () => deleteAccount(row, reload))
                     : null
                 )
             }

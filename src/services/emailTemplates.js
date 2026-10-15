@@ -46,7 +46,7 @@ export const DEFAULT_TEMPLATES = [
     subject: 'Your {{company_name}} sign-in code: {{otp_code}}',
     variables: ['user_name', 'otp_code', 'validity_minutes', 'company_name'],
     body_html: `<p>Hello {{user_name}},</p>
-<p>Use the one-time code below to sign in to the {{company_name}} Change Request Management System.</p>
+<p>Use the one-time code below to sign in.</p>
 <p style="font-size:32px;font-weight:700;letter-spacing:10px;color:#1f3864;margin:24px 0;">{{otp_code}}</p>
 <p>This code expires in {{validity_minutes}} minutes and can be used once.</p>
 <p style="color:#667085;font-size:13px;">If you did not request this code, you can safely ignore this email.</p>`
@@ -285,9 +285,9 @@ ${button('{{cr_url}}', 'Open Change Request')}`
     code: 'TEST_EMAIL',
     name: 'Test email',
     description: 'Sent from Settings to verify the email configuration.',
-    subject: '{{company_name}} CRMS - test email',
+    subject: '{{company_name}} Account Management - test email',
     variables: ['company_name', 'sent_by'],
-    body_html: `<p>This is a test message from the {{company_name}} Change Request Management System, requested by {{sent_by}}.</p>
+    body_html: `<p>This is a test message requested by {{sent_by}}.</p>
 <p>If you received it, outbound email is configured correctly.</p>`
   }
 ];
@@ -295,7 +295,17 @@ ${button('{{cr_url}}', 'Open Change Request')}`
 export function seedEmailTemplates() {
   for (const template of DEFAULT_TEMPLATES) {
     const existing = get('SELECT code FROM email_templates WHERE code = ?', [template.code]);
-    if (existing) continue;
+    if (existing) {
+      // carry the product rename into saved templates without touching any other edits
+      run(
+        `UPDATE email_templates
+            SET body_html = replace(body_html, 'Change Request Management', 'Account Management'),
+                subject = replace(subject, 'CRMS - test email', 'Account Management - test email')
+          WHERE code = ?`,
+        [template.code]
+      );
+      continue;
+    }
     run(
       `INSERT INTO email_templates (code, name, description, subject, body_html, variables_json, is_active, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, 1, ?)`,

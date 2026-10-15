@@ -101,18 +101,18 @@ async function main() {
   await import('../server.js');
   await new Promise((resolve) => setTimeout(resolve, 600));
 
-  console.log('\nHyreo CRMS — end-to-end workflow\n');
+  console.log('\nHyreo Account Management — end-to-end workflow\n');
 
   const admin = await step('1  email OTP login issues a session', async () => {
     const request = await fetch(`${BASE}/api/auth/otp/request`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'labs@hyreo.com' })
+      body: JSON.stringify({ email: 'sahaf@hyreo.com' })
     });
     const requested = await request.json();
     assert.ok(requested.data?.sent, 'the code is issued');
     assert.equal(requested.data.dev_code, undefined, 'one-time codes must never be returned over HTTP');
-    return login('labs@hyreo.com');
+    return login('sahaf@hyreo.com');
   });
   assert.equal(admin.role_code, 'ADMIN');
 

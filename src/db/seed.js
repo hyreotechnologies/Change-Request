@@ -18,7 +18,7 @@ import audit, { ACTIONS } from '../services/audit.js';
  */
 
 const SEED_USERS = [
-  { name: 'Sahaf Ahammed', email: 'labs@hyreo.com', role_code: 'ADMIN', department: 'Delivery', designation: 'Program Director' },
+  { name: 'Sahaf Ismail', email: 'sahaf@hyreo.com', role_code: 'ADMIN', department: 'Delivery', designation: 'Program Director' },
   { name: 'Arun Satyan', email: 'arun.satyan@hyreo.com', role_code: 'APPROVER', department: 'Leadership', designation: 'CEO' },
   { name: 'Priya Menon', email: 'cr.manager@hyreo.com', role_code: 'CR_MANAGER', department: 'Delivery', designation: 'Engagement Manager' },
   { name: 'Rahul Nair', email: 'viewer@hyreo.com', role_code: 'VIEWER', department: 'Finance', designation: 'Financial Analyst' }
@@ -99,9 +99,11 @@ export function seedDemoData() {
         status: 'ACTIVE',
         account_manager: 'Arun Satyan',
         cr_manager: 'Priya Menon',
-        delivery_manager: 'Sahaf Ahammed',
+        delivery_manager: 'Sahaf Ismail',
         internal_approver_name: 'Arun Satyan',
         internal_approver_email: 'arun.satyan@hyreo.com',
+        go_live_date: '2025-12-01',
+        next_renewal_date: '2026-12-01',
         notes: 'Reference account created from the executed CR01 document dated 03 March 2026.'
       },
       msa: {
@@ -230,9 +232,11 @@ export function seedDemoData() {
         status: 'ACTIVE',
         account_manager: 'Arun Satyan',
         cr_manager: 'Priya Menon',
-        delivery_manager: 'Sahaf Ahammed',
+        delivery_manager: 'Sahaf Ismail',
         internal_approver_name: 'Arun Satyan',
-        internal_approver_email: 'arun.satyan@hyreo.com'
+        internal_approver_email: 'arun.satyan@hyreo.com',
+        go_live_date: '2025-08-01',
+        next_renewal_date: '2027-06-30'
       },
       msa: {
         msa_reference_number: 'ACMETECH-0001',

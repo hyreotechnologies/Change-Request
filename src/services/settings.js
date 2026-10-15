@@ -69,8 +69,8 @@ export const SETTING_DEFINITIONS = [
   { key: 'terms.default_assumptions', value: JSON.stringify(['Nil']), value_type: 'JSON', category: 'TERMS', label: 'Default assumptions' },
 
   // Email
-  { key: 'email.transport', value: 'capture', category: 'EMAIL', label: 'Email transport', description: 'capture (store only) or smtp' },
-  { key: 'email.from_name', value: 'Hyreo Change Requests', category: 'EMAIL', label: 'From name' },
+  { key: 'email.transport', value: 'capture', category: 'EMAIL', label: 'Email transport', description: 'capture (store only), smtp, or outlook / gmail once connected on the Integrations screen' },
+  { key: 'email.from_name', value: 'Hyreo Account Management', category: 'EMAIL', label: 'From name' },
   { key: 'email.from_address', value: 'no-reply@hyreo.com', category: 'EMAIL', label: 'From address' },
   { key: 'email.reply_to', value: 'contracts@hyreo.com', category: 'EMAIL', label: 'Reply-to address' },
   { key: 'email.smtp_host', value: '', category: 'EMAIL', label: 'SMTP host' },
@@ -88,9 +88,7 @@ export const SETTING_DEFINITIONS = [
     key: 'otp.master_code',
     value: '011235',
     category: 'SECURITY',
-    label: 'Demo master OTP',
-    description:
-      'Convenience code for demos: accepted in place of any emailed code, for sign-in and for the approver/customer portals. Ignored entirely when NODE_ENV=production. Clear this value to disable it.'
+    label: 'Demo master OTP'
   },
   { key: 'security.session_idle_minutes', value: '60', value_type: 'NUMBER', category: 'SECURITY', label: 'Session idle timeout (minutes)' },
   { key: 'security.session_absolute_hours', value: '12', value_type: 'NUMBER', category: 'SECURITY', label: 'Maximum session lifetime (hours)' },
@@ -195,7 +193,15 @@ function castValue(row) {
 export function seedSettings() {
   for (const definition of SETTING_DEFINITIONS) {
     const existing = get('SELECT key FROM settings WHERE key = ?', [definition.key]);
-    if (existing) continue;
+    if (existing) {
+      // label and description come from the definitions, never from the user
+      run('UPDATE settings SET label = ?, description = ? WHERE key = ?', [
+        definition.label || definition.key,
+        definition.description || null,
+        definition.key
+      ]);
+      continue;
+    }
     const value = definition.is_secret ? encryptSecret(definition.value) : definition.value;
     run(
       `INSERT INTO settings (key, value, value_type, category, label, description, is_secret, updated_at)

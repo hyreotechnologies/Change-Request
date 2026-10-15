@@ -1,5 +1,6 @@
 import { getSetting } from './settings.js';
 import config from '../config.js';
+import integrations from './integrations.js';
 
 /**
  * Posts workflow events to Slack and Microsoft Teams incoming webhooks.
@@ -7,16 +8,23 @@ import config from '../config.js';
  * and the email + in-app channels remain the system of record.
  */
 
+/**
+ * A channel connected on the Integrations screen wins; the webhook URLs in
+ * Settings remain as a manual fallback.
+ */
 function targets() {
+  const slackConnected = integrations.slackWebhook();
   return {
-    slack: String(getSetting('integrations.slack_webhook_url', '') || '').trim(),
+    slack: slackConnected || String(getSetting('integrations.slack_webhook_url', '') || '').trim(),
+    slackConnected: Boolean(slackConnected),
+    teamsConnected: Boolean(integrations.teamsTarget()),
     teams: String(getSetting('integrations.teams_webhook_url', '') || '').trim()
   };
 }
 
 export function isConfigured() {
-  const { slack, teams } = targets();
-  return Boolean(slack || teams);
+  const { slack, teams, teamsConnected } = targets();
+  return Boolean(slack || teams || teamsConnected);
 }
 
 function absolute(link) {
@@ -25,7 +33,7 @@ function absolute(link) {
 }
 
 function slackPayload({ title, text, url }) {
-  const lines = [`*${title}*`, text, url ? `<${url}|Open in Hyreo CRMS>` : null].filter(Boolean);
+  const lines = [`*${title}*`, text, url ? `<${url}|Open in Hyreo Account Management>` : null].filter(Boolean);
   return { text: lines.join('\n') };
 }
 
@@ -38,7 +46,7 @@ function teamsPayload({ title, text, url }) {
     title,
     text: text || '',
     potentialAction: url
-      ? [{ '@type': 'OpenUri', name: 'Open in Hyreo CRMS', targets: [{ os: 'default', uri: url }] }]
+      ? [{ '@type': 'OpenUri', name: 'Open in Hyreo Account Management', targets: [{ os: 'default', uri: url }] }]
       : []
   };
 }
@@ -61,17 +69,28 @@ async function postJson(webhook, body) {
 }
 
 /** Deliver one message to every configured channel; resolves with per-channel results. */
-export async function deliver({ title, text = '', link = null }) {
-  const { slack, teams } = targets();
+export async function deliver({ title, text = '', link = null }, { only = null } = {}) {
+  const { slack, slackConnected, teams, teamsConnected } = targets();
   const message = { title, text, url: absolute(link) };
   const results = {};
-  if (slack) {
+  if (slack && (!only || only === 'slack')) {
     results.slack = await postJson(slack, slackPayload(message)).then(
+      () => {
+        if (slackConnected) integrations.recordDelivery('slack');
+        return { ok: true };
+      },
+      (error) => {
+        if (slackConnected) integrations.recordDelivery('slack', error);
+        return { ok: false, error: String(error?.message || error) };
+      }
+    );
+  }
+  if (teamsConnected && (!only || only === 'teams')) {
+    results.teams = await integrations.postToTeams(message).then(
       () => ({ ok: true }),
       (error) => ({ ok: false, error: String(error?.message || error) })
     );
-  }
-  if (teams) {
+  } else if (teams && (!only || only === 'teams')) {
     results.teams = await postJson(teams, teamsPayload(message)).then(
       () => ({ ok: true }),
       (error) => ({ ok: false, error: String(error?.message || error) })

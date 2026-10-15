@@ -345,7 +345,7 @@ export function renderSignedPdf(crId, signature) {
     italic: true,
     text:
       'The signatory identity was verified by a one-time passcode sent to the email address above. ' +
-      'This certificate and the associated audit trail are retained by the Hyreo Change Request Management System.'
+      'This certificate and the associated audit trail are retained by the Hyreo Account Management System.'
   });
 
   return renderPdf(model);

@@ -116,7 +116,16 @@ export async function accountDetailPage({ params }) {
           ['Country', account.country],
           ['City / State', [account.city, account.state].filter(Boolean).join(', ')],
           ['Postal code', account.postal_code],
-          ['Address', account.address]
+          ['Address', account.address],
+          ['Go-live date', date(account.go_live_date)],
+          [
+            'Next renewal',
+            account.next_renewal_date
+              ? date(account.next_renewal_date)
+              : msa?.contract_end_date
+                ? `${date(msa.contract_end_date)} (MSA end date)`
+                : null
+          ]
         ])
       }),
       card({

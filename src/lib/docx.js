@@ -222,7 +222,7 @@ function coreXml({ title, author, created }) {
 
 const APP_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
-<Application>Hyreo Change Request Management System</Application><DocSecurity>0</DocSecurity><Company>Hyreo</Company>
+<Application>Hyreo Account Management System</Application><DocSecurity>0</DocSecurity><Company>Hyreo</Company>
 </Properties>`;
 
 /**

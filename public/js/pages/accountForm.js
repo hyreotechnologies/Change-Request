@@ -222,6 +222,16 @@ export async function accountFormPage({ params }) {
               field('State', input('state', { value: account?.state || '' })),
               field('Postal code', input('postal_code', { value: account?.postal_code || '' }))
             ),
+            h('div.form-section', h('div.form-section__title', 'Go-live & renewal')),
+            h(
+              'div.grid.grid--form',
+              field('Go-live date', input('go_live_date', { type: 'date', value: inputDate(account?.go_live_date) }), {
+                hint: 'When the customer went, or goes, live'
+              }),
+              field('Next renewal date', input('next_renewal_date', { type: 'date', value: inputDate(account?.next_renewal_date) }), {
+                hint: 'Leave blank to use the MSA contract end date'
+              })
+            ),
             field(
               'Account status',
               select('status', [
@@ -456,6 +466,8 @@ export async function accountFormPage({ params }) {
           delivery_manager: data.delivery_manager,
           internal_approver_name: data.internal_approver_name,
           internal_approver_email: data.internal_approver_email,
+          go_live_date: data.go_live_date,
+          next_renewal_date: data.next_renewal_date,
           notes: data.notes
         },
         msa: {

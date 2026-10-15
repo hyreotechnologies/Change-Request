@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import { all, get, insert, run } from '../db/index.js';
 import { uid, randomToken } from '../lib/ids.js';
 import { nowIso, formatDateTime } from '../lib/dates.js';
@@ -6,6 +7,7 @@ import { hashToken } from '../lib/crypto.js';
 import { getSetting } from './settings.js';
 import { getTemplate } from './emailTemplates.js';
 import audit, { ACTIONS } from './audit.js';
+import integrations from './integrations.js';
 import config from '../config.js';
 
 /**
@@ -33,8 +35,24 @@ export function renderTemplateString(template, variables = {}) {
 }
 
 // Email clients can't recolour images, and hyreo.com only hosts the dark and all-white logos, so the app
-// serves a white + cyan version of https://hyreo.com/wp-content/uploads/2024/01/Hyreo-Logo.png itself.
-const emailLogoUrl = () => `${config.appUrl}/img/hyreo-logo-on-dark.png`;
+// ships a white + cyan version of https://hyreo.com/wp-content/uploads/2024/01/Hyreo-Logo.png itself.
+// It travels inside each message as an inline (cid) attachment: a linked image breaks whenever the
+// recipient's mail service cannot reach APP_URL, e.g. localhost or a private network address.
+const LOGO_PATH = '/img/hyreo-logo-on-dark.png';
+const LOGO_CID = 'brand-logo@hyreo';
+let logoBytes = null;
+
+/** The inline logo attachment, for any message whose HTML references it. */
+export function inlineAttachments(html) {
+  if (!String(html || '').includes(`cid:${LOGO_CID}`)) return [];
+  logoBytes ||= fs.readFileSync(path.join(config.publicDir, LOGO_PATH));
+  return [{ filename: 'logo.png', content: logoBytes, contentType: 'image/png', cid: LOGO_CID, inline: true }];
+}
+
+/** Browsers can't resolve cid: links, so in-app previews point the logo back at the served file. */
+function forPreview(html) {
+  return html ? html.split(`cid:${LOGO_CID}`).join(LOGO_PATH) : html;
+}
 
 export function wrapLayout({ subject, contentHtml, trackingToken = null, crReference = null }) {
   const companyName = getSetting('company.name', 'Hyreo');
@@ -49,14 +67,12 @@ export function wrapLayout({ subject, contentHtml, trackingToken = null, crRefer
 <tr><td align="center">
 <table role="presentation" width="620" cellpadding="0" cellspacing="0" style="width:620px;max-width:100%;background:#ffffff;border:1px solid #e4e7ec;border-radius:10px;overflow:hidden;">
 <tr><td style="background:#1f3864;padding:18px 28px;">
-  <img src="${emailLogoUrl()}" width="73" height="30" alt="${escapeHtml(companyName)}" style="display:block;border:0;width:73px;height:30px;"/>
-  <div style="color:#8fb4e8;font-size:12px;margin-top:4px;">Change Request Management</div>
+  <img src="cid:${LOGO_CID}" width="73" height="30" alt="${escapeHtml(companyName)}" style="display:block;border:0;width:73px;height:30px;"/>
 </td></tr>
 <tr><td style="padding:28px;font-size:14px;line-height:1.6;color:#344054;">${contentHtml}</td></tr>
 <tr><td style="padding:16px 28px;background:#fafbfc;border-top:1px solid #e4e7ec;color:#667085;font-size:12px;line-height:1.5;">
   ${crReference ? `Reference: <strong>${escapeHtml(crReference)}</strong><br/>` : ''}
   This message and any attachment are confidential and intended solely for the addressee.
-  Sent by the ${escapeHtml(companyName)} Change Request Management System.
 </td></tr>
 </table></td></tr></table>${pixel}
 </body></html>`;
@@ -122,6 +138,9 @@ export function queue({
   return row;
 }
 
+/** Mailboxes connected on the Integrations screen send on the organisation's behalf. */
+const MAILBOX_TRANSPORTS = new Set(['outlook', 'gmail']);
+
 const pending = [];
 let flushing = false;
 
@@ -146,9 +165,31 @@ export async function flush() {
     for (const row of rows) {
       const transport = getSetting('email.transport', 'capture');
       try {
-        if (transport === 'smtp' && getSetting('email.smtp_host')) {
+        if (MAILBOX_TRANSPORTS.has(transport) && integrations.isConnected(transport)) {
+          const sent = await integrations.sendMail(transport, {
+            to: row.to_email,
+            cc: row.cc_emails,
+            subject: row.subject,
+            html: row.body_html,
+            text: row.body_text,
+            fromName: getSetting('email.from_name') || undefined,
+            replyTo: getSetting('email.reply_to') || undefined,
+            attachments: [
+              ...readAttachments(row).map((a) => ({ filename: a.filename, contentType: a.contentType, content: fs.readFileSync(a.path) })),
+              ...inlineAttachments(row.body_html)
+            ]
+          });
+          run('UPDATE email_logs SET status = ?, sent_at = ?, delivered_at = ?, provider = ?, from_email = ? WHERE id = ?', [
+            'DELIVERED',
+            nowIso(),
+            nowIso(),
+            transport,
+            sent.from,
+            row.id
+          ]);
+        } else if (transport === 'smtp' && getSetting('email.smtp_host')) {
           const mailer = await smtpTransport();
-          const attachments = readAttachments(row);
+          const attachments = [...readAttachments(row), ...inlineAttachments(row.body_html)];
           const info = await mailer.sendMail({
             from: row.from_email,
             to: row.to_email,
@@ -281,16 +322,25 @@ export function listEmails({ crId = null, status = null, q = null, limit = 100, 
 }
 
 export function getEmail(id) {
-  return get('SELECT * FROM email_logs WHERE id = ?', [id]);
+  const row = get('SELECT * FROM email_logs WHERE id = ?', [id]);
+  return row ? { ...row, body_html: forPreview(row.body_html) } : row;
 }
 
 /** True when OTP codes may be surfaced in the UI (no real mail transport). */
 export function isCaptureMode() {
-  return getSetting('email.transport', 'capture') !== 'smtp' || !getSetting('email.smtp_host');
+  const transport = getSetting('email.transport', 'capture');
+  if (MAILBOX_TRANSPORTS.has(transport)) return !integrations.isConnected(transport);
+  return transport !== 'smtp' || !getSetting('email.smtp_host');
 }
 
 export function verifyTransport() {
   const transport = getSetting('email.transport', 'capture');
+  if (MAILBOX_TRANSPORTS.has(transport)) {
+    const account = integrations.connectedAccount(transport);
+    return account
+      ? { ok: true, transport, message: `Sending through the connected ${transport === 'gmail' ? 'Gmail' : 'Outlook'} mailbox ${account.email}.` }
+      : { ok: false, transport, message: `${transport} is selected but not connected — connect it on the Integrations screen.` };
+  }
   if (transport !== 'smtp') {
     return { ok: true, transport, message: 'Capture transport active — messages are stored in the outbox and not delivered externally.' };
   }
@@ -313,5 +363,6 @@ export default {
   isCaptureMode,
   verifyTransport,
   renderTemplateString,
-  wrapLayout
+  wrapLayout,
+  inlineAttachments
 };

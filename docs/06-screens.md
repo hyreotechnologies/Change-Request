@@ -8,7 +8,7 @@ menu). Desktop-first, collapses to a drawer below 1024px.
 
 | # | Route | Screen | Notes |
 |---|---|---|---|
-| P1 | `/login` | Login — email capture | "Hyreo Change Request Management", single email field, **Send OTP** |
+| P1 | `/login` | Login — email capture | "Hyreo Account Management", single email field, **Send OTP** |
 | P2 | `/login` (step 2) | OTP verification | 6 boxes, masked destination, **Verify OTP**, **Resend OTP** with cooldown |
 | P3 | `/portal/:token` | Portal gate | Shows CR number + account, asks for the bound email, sends OTP |
 | P4 | `/portal/:token` (verified) | Approver review | Read-only CR, document preview/download, **Approve CR** / **Reject CR** |

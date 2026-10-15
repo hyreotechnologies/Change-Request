@@ -17,7 +17,7 @@ function brandPanel() {
     'section.auth__brand',
     h(
       'div.auth__logo',
-      h('div.brand.brand--lg', h('img.brand__logo', { src: HYREO_LOGO_URL, alt: 'Hyreo' }), h('div.sidebar__subtitle', 'Change Request Management'))
+      h('div.brand.brand--lg', h('img.brand__logo', { src: HYREO_LOGO_URL, alt: 'Hyreo' }), h('div.sidebar__subtitle', 'Account Management'))
     ),
     h(
       'div',
@@ -81,7 +81,7 @@ function renderEmailStep(panel, presetEmail = '') {
 
   render(
     panel,
-    h('h1.auth__title', 'Hyreo Change Request Management'),
+    h('h1.auth__title', 'Hyreo Account Management'),
     h('p.auth__sub', 'Enter your work email address and we will send you a one-time passcode.'),
     form,
     h(

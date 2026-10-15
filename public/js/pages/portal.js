@@ -48,7 +48,7 @@ export async function portalPage(root, { params }) {
   function portalBar(ctx = null) {
     return h(
       'header.portal__bar',
-      h('div.brand', h('img.brand__logo', { src: HYREO_LOGO_URL, alt: ctx?.company_name || 'Hyreo' }), h('div.sidebar__subtitle', 'Change Request Management')),
+      h('div.brand', h('img.brand__logo', { src: HYREO_LOGO_URL, alt: ctx?.company_name || 'Hyreo' }), h('div.sidebar__subtitle', 'Account Management')),
       ctx
         ? h(
             'div',

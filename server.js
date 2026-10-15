@@ -96,7 +96,7 @@ app.use(errorHandler);
 
 const server = app.listen(config.port, config.host, () => {
   console.log('');
-  console.log('  Hyreo Change Request Management System');
+  console.log('  Hyreo Account Management System');
   console.log(`  ${config.appUrl}`);
   console.log(`  environment : ${config.env}`);
   console.log(`  database    : ${config.databaseFile}`);

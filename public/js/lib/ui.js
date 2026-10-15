@@ -46,7 +46,8 @@ const PATHS = {
   moon: 'M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z',
   sun: 'M12 17a5 5 0 100-10 5 5 0 000 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
   keyboard: 'M20 5H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V7a2 2 0 00-2-2zM6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 13h.01M18 13h.01M8 16h8M10 13h4',
-  diff: 'M12 3v14M5 10h14M5 21h14'
+  diff: 'M12 3v14M5 10h14M5 21h14',
+  plug: 'M9 2v6M15 2v6M6 8h12v4a6 6 0 01-12 0zM12 18v4'
 };
 
 export function icon(name, size = 16, extraClass = '') {

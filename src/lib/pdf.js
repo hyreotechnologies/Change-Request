@@ -288,7 +288,7 @@ class PdfBuilder {
     const infoObj = add(
       `<< /Title (${escapeText(meta.title || 'Change Request')}) /Author (${escapeText(
         meta.author || 'Hyreo'
-      )}) /Producer (Hyreo CRMS) /Creator (Hyreo CRMS) /CreationDate (D:${pdfDate()}) >>`
+      )}) /Producer (Hyreo Account Management) /Creator (Hyreo Account Management) /CreationDate (D:${pdfDate()}) >>`
     );
     const catalogObj = add(`<< /Type /Catalog /Pages ${pagesObj} 0 R >>`);
 

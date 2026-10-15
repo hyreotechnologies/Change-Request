@@ -83,9 +83,9 @@ async function main() {
   const db = await import('../src/db/index.js');
   await new Promise((resolve) => setTimeout(resolve, 600));
 
-  console.log('\nHyreo CRMS — workflow productivity features\n');
+  console.log('\nHyreo Account Management — workflow productivity features\n');
 
-  await login('labs@hyreo.com', 'admin');
+  await login('sahaf@hyreo.com', 'admin');
   const manager = await login('cr.manager@hyreo.com', 'manager');
 
   const all = await call('GET', '/api/change-requests?pageSize=100');
