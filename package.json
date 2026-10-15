@@ -1,0 +1,27 @@
+{
+  "name": "hyreo-crms",
+  "version": "1.0.0",
+  "description": "Hyreo Change Request Management System — account/MSA master, CR lifecycle, internal approval, document generation, customer signature and audit.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed": "node scripts/seed.js",
+    "reset": "node scripts/reset.js",
+    "test": "node --test tests/",
+    "smoke": "node tests/smoke.test.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "nodemailer": "^10.0.10"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "devDependencies": {
+    "puppeteer-core": "^25.11.0"
+  }
+}
